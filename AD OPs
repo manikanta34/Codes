@@ -1,0 +1,67 @@
+public Map<String, Set<String>> getADMembershipData1(Set<String> updatedGroups, LdapContext ldapContext,
+			String base_dn) {
+		Map<String, Set<String>> groupMembers = null;
+
+		try {
+			int pageSize = 1000;
+			byte[] cookie = null;
+			ldapContext.setRequestControls(new Control[] { new PagedResultsControl(pageSize, Control.NONCRITICAL) });
+			SearchControls sc = new SearchControls();
+			sc.setSearchScope(SearchControls.SUBTREE_SCOPE);
+			groupMembers = new ConcurrentHashMap<>();
+			String[] attrIDs = { "sAMAccountName", "memberof" };
+			String filter = groupMembershipFilter(updatedGroups);
+			do {
+				NamingEnumeration<SearchResult> answer = new LDAPOperations().getDataFromLDAP(ldapContext, base_dn,
+						filter, attrIDs);
+				if (answer != null) {
+					groupMembers = getGroupMembers(answer, groupMembers);
+					Control[] controls = ldapContext.getResponseControls();
+					if (controls != null) {
+						for (int i = 0; i < controls.length; i++) {
+							if (controls[i] instanceof PagedResultsResponseControl) {
+								PagedResultsResponseControl prrc = (PagedResultsResponseControl) controls[i];
+								cookie = prrc.getCookie();
+							}
+						}
+					}
+					ldapContext.setRequestControls(
+							new Control[] { new PagedResultsControl(pageSize, cookie, Control.CRITICAL) });
+				}
+			} while (cookie != null);
+
+		} catch (NoSuchElementException nse) {
+			nse.printStackTrace();
+		} catch (AuthenticationException authEx) {
+			authEx.printStackTrace();
+		} catch (NamingException namEx) {
+			namEx.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return groupMembers;
+
+	}
+
+	private Map<String, Set<String>> getGroupMembers(NamingEnumeration<SearchResult> answer,
+			Map<String, Set<String>> groupMembers) {
+		try {
+			while (answer.hasMoreElements()) {
+				String sAMAccountName = null;
+				Set<String> memberInfo = new HashSet<>();
+				SearchResult sr = (SearchResult) answer.next();
+				Attributes attrs = sr.getAttributes();
+				sAMAccountName = attrs.get("sAMAccountName").get().toString();
+				NamingEnumeration vals = attrs.get("memberof").getAll();
+				while (vals.hasMoreElements()) {
+					memberInfo.add(vals.nextElement().toString());
+				}
+				groupMembers.put(sAMAccountName, memberInfo);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+
+		}
+		return groupMembers;
+
+	}
