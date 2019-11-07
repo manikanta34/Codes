@@ -1,0 +1,13 @@
+public String groupMembershipFilter(Set<String> groups) {
+		StringBuffer filter = new StringBuffer();
+		StringBuffer fullGroupFilter = new StringBuffer();
+		StringBuffer eachGroupFilter = null;
+		filter.append("(&(objectClass=user)");
+		for (String group : groups) {
+			eachGroupFilter = new StringBuffer();
+			eachGroupFilter.append("(memberof=" + group + ")");
+			fullGroupFilter.append(eachGroupFilter);
+		}
+		filter.append("(|" + fullGroupFilter + "))");
+		return filter.toString();
+	}
