@@ -1,0 +1,48 @@
+public Set<String> doCompare(Map<String, Set<String>> adGroupMembers, Map<String, Set<String>> oimGroupMembers)
+			throws Exception {
+		Set<String> uncorrelatedAcc = null;
+		try {
+			uncorrelatedAcc = new HashSet<>();
+			if (adGroupMembers != null && oimGroupMembers != null) {
+				if (adGroupMembers.size() > 0 && oimGroupMembers.size() > 0) {
+					uncorrelatedAcc = compareADToOIM(adGroupMembers, oimGroupMembers);
+				} else if (adGroupMembers.size() == 0 && oimGroupMembers.size() > 0) {
+					uncorrelatedAcc.addAll(oimGroupMembers.keySet());
+				} else if (oimGroupMembers.size() == 0 && adGroupMembers.size() > 0) {
+					uncorrelatedAcc.addAll(adGroupMembers.keySet());
+				}
+			}
+		} catch (Exception e) {
+			throw e;
+		}
+		return uncorrelatedAcc;
+	}
+
+	private Set<String> compareADToOIM(Map<String, Set<String>> adGroupMembers,
+			Map<String, Set<String>> oimGroupMembers) {
+		Set<String> uncorrelatedAcc = null;
+		try {
+			uncorrelatedAcc = new HashSet<>();
+			Iterator<Entry<String, Set<String>>> hmIterator = adGroupMembers.entrySet().iterator();
+			while (hmIterator.hasNext()) {
+				Map.Entry<String, Set<String>> entry = hmIterator.next();
+				if (oimGroupMembers.containsKey(entry.getKey())) {
+					Set<String> adGroupList = entry.getValue();
+					Set<String> oimGroupList = oimGroupMembers.get(entry.getKey());
+					if (!(adGroupList.equals(oimGroupList))) {
+						oimGroupMembers.remove(entry.getKey());
+						adGroupMembers.remove(entry.getKey());
+					}
+				} else if (!ConnectionUtils.searchUser(entry.getKey())) {
+					adGroupMembers.remove(entry.getKey());
+				}
+
+			}
+			uncorrelatedAcc.addAll(oimGroupMembers.keySet());
+			uncorrelatedAcc.addAll(adGroupMembers.keySet());
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return uncorrelatedAcc;
+	}
