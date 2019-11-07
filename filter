@@ -8,6 +8,7 @@ public String groupMembershipFilter(Set<String> groups) {
 			eachGroupFilter.append("(memberof=" + group + ")");
 			fullGroupFilter.append(eachGroupFilter);
 		}
+		filter.append("|(wfc-accounttype=N)(wfc-accounttype=L)(wfc-accounttype=A))");
 		filter.append("(|" + fullGroupFilter + "))");
 		return filter.toString();
 	}
