@@ -1,0 +1,41 @@
+public Map<String, Set<String>> getOIMMembershipData(Set<String> updatedGroups, long itResourcekey)
+			throws Exception {
+		Map<String, Set<String>> oimGroupMembers = null;
+		Set<String> listOfGroups = null;
+		StringBuilder formStatement = null;
+		PlatformUtil platform=null;
+		try {
+			platform=new PlatformUtil();
+			formStatement = this.replacePreparedStatment(updatedGroups);
+			sqlQuery = sqlQuery.replace("?", formStatement.deleteCharAt(formStatement.length() - 1).toString());
+			System.out.println(sqlQuery);
+			try (Connection con = platform.getConnection();
+					PreparedStatement stmt = con.prepareStatement(sqlQuery);) {
+				stmt.setFetchSize(1000);
+				int index = 1;
+				for (String group : updatedGroups) {
+					stmt.setString(index++, itResourcekey + "~" + group);
+				}
+				try (ResultSet rs = stmt.executeQuery();) {
+					if (rs != null) {
+						oimGroupMembers = new HashMap<String, Set<String>>();
+						while (rs.next()) {
+							String userLogin = rs.getString(1);
+							if (oimGroupMembers.containsKey(userLogin)) {
+								listOfGroups = oimGroupMembers.get(userLogin);
+								listOfGroups.add(rs.getString(2));
+							} else {
+								listOfGroups = new HashSet<String>();
+								listOfGroups.add(rs.getString(2));
+							}
+							oimGroupMembers.put(userLogin, listOfGroups);
+						}
+					}
+				}
+			}
+		} catch (Exception e) {
+			throw e;
+		}
+		return oimGroupMembers;
+	}
+
