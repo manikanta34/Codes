@@ -1,0 +1,14 @@
+public DirContext connectToLDAP(long itResourceKey) {
+		DirContext ldapContext = null;
+		String ldapHost = validateITResourceValue(itResourceKey, "LDAPHostName");
+		String ldapPort = validateITResourceValue(itResourceKey, "ADLDSPort");
+		String ldapUrl = "ldap://" + ldapHost + ":" + ldapPort;
+		String ldapPrincipal = validateITResourceValue(itResourceKey, "DirectoryAdminName");
+		String[] userDN = ldapPrincipal.split("\\\\");
+		ldapPrincipal = userDN[1] + "@" + userDN[0];
+		LDAPOperations ldapOprs = new LDAPOperations();
+		try {
+		return ldapOprs.connectToLDAP(ldapUrl, ldapPrincipal,
+				validateITResourceValue(itResourceKey, "DirectoryAdminPassword"), "0", "0");
+		}
+	}
