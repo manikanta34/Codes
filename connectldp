@@ -10,5 +10,7 @@ public DirContext connectToLDAP(long itResourceKey) {
 		try {
 		return ldapOprs.connectToLDAP(ldapUrl, ldapPrincipal,
 				validateITResourceValue(itResourceKey, "DirectoryAdminPassword"), "0", "0");
+		}catch(Exception e){
+		LMF.severe("Exception occured in Connecting LDAP"+e.getMessage());
 		}
 	}
