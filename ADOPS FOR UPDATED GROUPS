@@ -1,0 +1,77 @@
+public HashMap<String, Object> getAllUpdatedGroups(Integer uSNChanged, DirContext ldapContext, String base_dn)
+			throws Exception {
+		NamingEnumeration<SearchResult> answer = null;
+		HashMap<String, Object> updatedGroupMap = null;
+		Set<String> updatedGroupsList = null;
+		SortedSet<Integer> sortedNames = null;
+		try {
+			int pageSize = 1000;
+			byte[] cookie = null;
+			ldapContext.setRequestControls(new Control[] { new PagedResultsControl(pageSize, Control.NONCRITICAL) });
+			SearchControls sc = new SearchControls();
+			sc.setSearchScope(SearchControls.SUBTREE_SCOPE);
+			String[] attrIDs = { "distinguishedName", "uSNChanged" };
+			String filter = "(&(objectClass=group)(uSNChanged>=" + uSNChanged + "))";
+			updatedGroupMap = new HashMap<>();
+				updatedGroupsList = new HashSet<>();
+				sortedNames = new TreeSet<>();
+			do {
+				NamingEnumeration<SearchResult> answer = new LDAPOperations().getDataFromLDAP(ldapContext, base_dn,
+						filter, attrIDs);
+				if (answer != null) {
+					while (answer.hasMoreElements()) {
+					SearchResult sr = (SearchResult) answer.next();
+					Attributes attrs = sr.getAttributes();
+					NamingEnumeration vals = attrs.getAll();
+					while (vals.hasMoreElements()) {
+						Attribute returnValues = (Attribute) vals.next();
+						String attrId = returnValues.getID();
+						Enumeration returnValue = returnValues.getAll();
+						while (returnValue.hasMoreElements()) {
+							Object attr_val = returnValue.nextElement();
+							if (attrId.equalsIgnoreCase("uSNChanged")) {
+								sortedNames.add(Integer.valueOf(attr_val.toString()));
+							} else if (attrId.equalsIgnoreCase("distinguishedName")) {
+								updatedGroupsList.add(attr_val.toString());
+							}
+						}
+					}
+				}
+								Control[] controls = ldapContext.getResponseControls();
+					if (controls != null) {
+						for (int i = 0; i < controls.length; i++) {
+							if (controls[i] instanceof PagedResultsResponseControl) {
+								PagedResultsResponseControl prrc = (PagedResultsResponseControl) controls[i];
+								cookie = prrc.getCookie();
+							}
+						}
+					}
+					ldapContext.setRequestControls(
+							new Control[] { new PagedResultsControl(pageSize, cookie, Control.CRITICAL) });
+				}
+			} while (cookie != null);
+			updatedGroupMap.put("Updated Groups", updatedGroupsList);
+				if (sortedNames != null && sortedNames.size() > 0) {
+					updatedGroupMap.put("Latest USNChanged", sortedNames.last());
+				} else {
+					updatedGroupMap.put("Latest USNChanged", uSNChanged);
+				}	
+
+		}catch (NoSuchElementException e) {
+			e.printStackTrace();
+			throw e;
+		} catch (AuthenticationException e) {
+			e.printStackTrace();
+			throw e;
+
+		} catch (NamingException e) {
+			e.printStackTrace();
+			throw e;
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw e;
+
+		}
+		return updatedGroupMap;
+	}
