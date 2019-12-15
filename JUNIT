@@ -14,6 +14,8 @@ public class ADGroupMembershipTaskTest {
 	@Mock
 	NamingEnumeration<SearchResult> nme;
 	@Mock
+	NamingEnumeration nmeAD;
+	@Mock
 	SearchResult searchResult;
 	@Mock
 	Attributes  attributes;
@@ -36,12 +38,23 @@ public class ADGroupMembershipTaskTest {
 		adJob = new ADGroupMembershipTask(platformUtil,ldapOps);
 		params = new HashMap<>();
 		params.put("ITResource Name", "Active Directory");
-		params.put("DL To Exclude", "");
+		params.put("DL To Exclude", "GroupX");
 		
 		PowerMockito.when(ITResourceUtils.getItResource(Mockito.anyString(),Mockito.any(LogMessageFormatter.class))).thenReturn(12l);
 		PowerMockito.when(ITResourceUtils.findITResParamFromKey(Mockito.anyLong(),Mockito.anyString(),Mockito.any(LogMessageFormatter.class))).thenReturn("");
-		Mockito.when(ldap.connectToLDAP(Mockito.anyString(),Mockito.anyString(),Mockito.anyString(),Mockito.anyString(),Mockito.anyString())).thenReturn(ldapContext);
 		
+		Mockito.when(ldap.connectToLDAP(Mockito.anyString(),Mockito.anyString(),Mockito.anyString(),Mockito.anyString(),Mockito.anyString())).thenReturn(ldapContext);
+		Mockito.when(ldapOps.getDataFromLDAP(Mockito.any(DirContext.class),Mockito.anyString(),Mockito.anyString(),Mockito.any(String[].class))).thenReturn(nme);
+		Mockito.when(nme.hasMoreElements()).thenReturn(true).thenReturn(false);
+		Mockito.when(nme.next()).thenReturn(searchResult);
+		Mockito.when(searchResult.getAttributes()).thenReturn(attributes);
+		
+		Mockito.when(platformUtil.getConnection()).thenReturn(connection);
+		Mockito.when(connection.preparedStatement(Mockito.anyString())).thenReturn(statement);
+		Mockito.when(statement.executeQuery()).thenReturn(resultSet);
+		Mockito.when(resultSet.next()).thenReturn(false);
+
+
 		doNothing().PowerMockito.when(ScheduledTaskUtils.updateParameter(Mockito.any(PlatformUtils.class),Mockito.anyString(),Mockito.anyString(),Mockito.anyInt()));
 
 	}
@@ -50,14 +63,24 @@ public class ADGroupMembershipTaskTest {
 	public void testExecuteWithFullReconMode() throws Exception {
 		params.put("Latest uSNChanged Token", "0");
 		
-		Mockito.when(ldap.getDataFromLDAP(Mockito.any(DirContext.class),Mockito.anyString(),Mockito.anyString(),Mockito.any(String[].class))).thenReturn(nme);
-		Mockito.when(nme.hasMoreElements()).thenReturn(true).thenReturn(false);
-		Mockito.when(nme.next()).thenReturn(searchResult);
-		Mockito.when(searchResult.getAttributes()).thenReturn(attributes);
+		
 		Mockito.when(attributes.get("uSNChanged").get().toString()).thenReturn("12345");
 		
 		adJob.execute(params);
 	}
 
-	
+	@Test
+	public void testExecuteWithIncreementalMode() throws Exception {
+		params.put("DL To Exclude", "1234");
+		
+		Mockito.when(attributes.get("distinguishedName").get().toString()).thenReturn("Group1");
+		Mockito.when(attributes.get("uSNChanged").get().toString()).thenReturn("12345");
+		Mockito.when(attributes.get("sAMAccountName").get().toString()).thenReturn("User-1");
+		Mockito.when(attributes.get("memberOf").getAll()).thenReturn(nmeAD);
+		Mockito.when(nmeAD.hasMoreElements()).thenReturn(true).thenReturn(false);
+		Mockito.when(nmeAD.nextElement().toString()).thenReturn("Group1");
+
+		adJob.execute(params);
+	}
+
 }
