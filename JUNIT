@@ -1,0 +1,63 @@
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({ ITResourceUtils.class ,ScheduledTaskUtils.class})
+public class ADGroupMembershipTaskTest {
+	@Rule
+	private final ExpectedException thrown = ExpectedException.none();
+	@Mock
+	LDAPOperations ldapOps;
+	@Mock
+	PlatformUtil platformUtil;
+	
+
+	@Mock
+	DirContext ldapContext;
+	@Mock
+	NamingEnumeration<SearchResult> nme;
+	@Mock
+	SearchResult searchResult;
+	@Mock
+	Attributes  attributes;
+	
+	@Mock
+	Connection connection;
+	@Mock
+	PreparedStatement statement;
+	@Mock
+	ResultSet resultSet;
+	ADGroupMembershipTask adJob;
+	HashMap<String, Object> params;
+	
+
+	@Before
+	public void setUp() throws Exception {
+		MockitoAnnotations.initMocks(this);
+		PowerMockito.mockStatic(ITResourceUtils.class);
+
+		adJob = new ADGroupMembershipTask(platformUtil,ldapOps);
+		params = new HashMap<>();
+		params.put("ITResource Name", "Active Directory");
+		params.put("DL To Exclude", "");
+		
+		PowerMockito.when(ITResourceUtils.getItResource(Mockito.anyString(),Mockito.any(LogMessageFormatter.class))).thenReturn(12l);
+		PowerMockito.when(ITResourceUtils.findITResParamFromKey(Mockito.anyLong(),Mockito.anyString(),Mockito.any(LogMessageFormatter.class))).thenReturn("");
+		Mockito.when(ldap.connectToLDAP(Mockito.anyString(),Mockito.anyString(),Mockito.anyString(),Mockito.anyString(),Mockito.anyString())).thenReturn(ldapContext);
+		
+		doNothing().PowerMockito.when(ScheduledTaskUtils.updateParameter(Mockito.any(PlatformUtils.class),Mockito.anyString(),Mockito.anyString(),Mockito.anyInt()));
+
+	}
+
+	@Test
+	public void testExecuteWithFullReconMode() throws Exception {
+		params.put("Latest uSNChanged Token", "0");
+		
+		Mockito.when(ldap.getDataFromLDAP(Mockito.any(DirContext.class),Mockito.anyString(),Mockito.anyString(),Mockito.any(String[].class))).thenReturn(nme);
+		Mockito.when(nme.hasMoreElements()).thenReturn(true).thenReturn(false);
+		Mockito.when(nme.next()).thenReturn(searchResult);
+		Mockito.when(searchResult.getAttributes()).thenReturn(attributes);
+		Mockito.when(attributes.get("uSNChanged").get().toString()).thenReturn("12345");
+		
+		adJob.execute(params);
+	}
+
+	
+}
