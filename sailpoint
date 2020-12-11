@@ -1,0 +1,59 @@
+String identityRequestID;
+  String identityRequestObjectID;
+  String accessRequestID = null;
+  HashMap returnMap = new HashMap();
+  
+  Identity identity = context.getObjectByName(Identity.class, beneficiary);
+  String beneficiaryName = identity.getName();
+
+  QueryOptions queryOption = new QueryOptions();
+  queryOption.addFilter(Filter.eq("targetName", beneficiaryName));
+  queryOption.addFilter(Filter.eq("type", "Approval"));
+  queryOption.addFilter(Filter.isnull("state"));
+
+  Iterator itWorkItems = context.search(WorkItem.class, queryOption);
+
+  while ((null != itWorkItems) && (itWorkItems.hasNext())) {
+   WorkItem workitem = (WorkItem) itWorkItems.next();
+   identityRequestID = workitem.getIdentityRequestId();
+   if (null != identityRequestID) {
+    accessRequestID = new Integer(identityRequestID).toString();
+   }  
+   if (identityRequestID != null) {
+    IdentityRequest irReq = context.getObjectByName(IdentityRequest.class, identityRequestID);
+    identityRequestObjectID = irReq.getId();
+    
+    TaskResult taskResult = context.getObjectById(TaskResult.class,(String)irReq.getAttribute("taskResultId"));    
+    WorkflowCase workflowCase = context.getObjectById(WorkflowCase.class,(String) taskResult.getAttribute("workflowCaseId"));
+        
+    returnMap.put("Access Request Number", accessRequestID);
+    returnMap.put("Identity Request ID", identityRequestObjectID);
+    returnMap.put("Approval WorkItem ID", workitem.getId());
+    returnMap.put("Approval WorkItem Pending", workitem.getOwner().getName());
+    returnMap.put("Requester", workitem.getRequester().getName());
+    returnMap.put("Task Result ID", (String)irReq.getAttribute("taskResultId"));
+    returnMap.put("WorkFlowCase ID", (String) taskResult.getAttribute("workflowCaseId"));
+    
+   } 
+   if (null != workitem && null != workitem.getApprovalSet()) {
+    ApprovalSet appSet = workitem.getApprovalSet();
+    List approvalItems = appSet.getItems();  
+    String entname1 = null;
+    for (Object itemObj : approvalItems) {
+     String entname = null;
+     ApprovalItem item = (ApprovalItem) itemObj;
+     if (item.getValue() instanceof String) {
+      entname = (String) item.getValue();
+      entname1 = entname1 + "||" + entname;
+     }
+     if (item.getValue() instanceof List) {
+      entname = (String) ((List) item.getValue()).get(0);
+      entname1 = entname1 + "||" + entname;
+     }
+    }
+   // returnMap.put("Entitlement", entname1);
+   }
+   System.out.println(returnMap);
+  }
+  
+  sailpoint.tools.Util.flushIterator(itWorkItems);
